@@ -44,15 +44,15 @@ Each step is safe to deploy while the previous step's code is still serving. Eve
 needs the previous one fully deployed first; steps whose migration and code both change
 apply the migration before the new code serves.
 
-| Branch | PR | Migration | Code | Why the previous step's code still works |
-|---|---|---|---|---|
-| `step_0` | [#1](https://github.com/samiyabroudi/oldwelllabs/pull/1) | `0001` create `funds`, `commitment text not null` | Reads/writes text | (baseline) |
-| `step_1` | [#2](https://github.com/samiyabroudi/oldwelllabs/pull/2) | `0002` add nullable `commitment_cents`, `currency` | No change | Explicit column lists: it never sees the new columns |
-| `step_2` | [#3](https://github.com/samiyabroudi/oldwelllabs/pull/3) | none | Dual-writes text + new columns; reads text | Step 1 writes text only; new columns aren't read yet |
-| `step_3` | [#4](https://github.com/samiyabroudi/oldwelllabs/pull/4) | `0003` backfill every row from the text | No change | Step 2 dual-writes, so nothing can go stale after the backfill |
-| `step_4` | [#5](https://github.com/samiyabroudi/oldwelllabs/pull/5) | `0004` new columns `NOT NULL` | Reads new columns; still dual-writes | Step 3 dual-writes, so the constraint holds, and still gets its text |
-| `step_5` | [#6](https://github.com/samiyabroudi/oldwelllabs/pull/6) | `0005` text column nullable | Stops writing text | Step 4 still writes text (harmless) and never reads it |
-| `step_6` | [#7](https://github.com/samiyabroudi/oldwelllabs/pull/7) | `0006` drop text column | No change | Step 5 never names the column |
+| Branch | PR | Migration | Code |
+|---|---|---|---|
+| `step_0` | [#1](https://github.com/samiyabroudi/oldwelllabs/pull/1) | `0001` create `funds`, `commitment text not null` | Reads/writes text |
+| `step_1` | [#2](https://github.com/samiyabroudi/oldwelllabs/pull/2) | `0002` add nullable `commitment_cents`, `currency` | No change |
+| `step_2` | [#3](https://github.com/samiyabroudi/oldwelllabs/pull/3) | none | Dual-writes text + new columns; reads text |
+| `step_3` | [#4](https://github.com/samiyabroudi/oldwelllabs/pull/4) | `0003` backfill every row from the text | No change |
+| `step_4` | [#5](https://github.com/samiyabroudi/oldwelllabs/pull/5) | `0004` new columns `NOT NULL` | Reads new columns; still dual-writes |
+| `step_5` | [#6](https://github.com/samiyabroudi/oldwelllabs/pull/6) | `0005` text column nullable | Stops writing text |
+| `step_6` | [#7](https://github.com/samiyabroudi/oldwelllabs/pull/7) | `0006` drop text column | No change |
 
 Final schema: `funds(id, fund_name, strategy, vintage_year, commitment_cents bigint not null,
 currency char(3) not null)`. The API still accepts and returns `commitment` as a display
