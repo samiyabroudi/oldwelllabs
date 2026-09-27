@@ -33,10 +33,7 @@ it, since its branch contains them.
 
 **Deploying to a running system is different: steps can't be skipped.** Starting from any step
 works for a fresh database, like the one `make seed` builds. On an existing database with live
-traffic, each step assumes the previous one is fully deployed (see the table below). Jumping
-straight from `step_1` to `step_4`, for example, would add `NOT NULL` while step-1 instances
-are still writing text-only rows, and it would skip the window in which step 2 makes every
-writer fill the new columns before step 3 backfills them.
+traffic, each step assumes the previous one is fully deployed (see the table below).
 
 ## Migration sequence
 
