@@ -9,9 +9,11 @@ from typing import Any
 import psycopg
 from psycopg import sql
 
-from app.commitment import parse_commitment
+from app.commitment import format_commitment, parse_commitment
 
-COLUMNS = ("id", "fund_name", "strategy", "vintage_year", "commitment")
+# Reads use the new columns only. The commitment text is no longer read, so this code keeps
+# working once step 5 stops writing it (rows with NULL text) and step 6 drops it.
+COLUMNS = ("id", "fund_name", "strategy", "vintage_year", "commitment_cents", "currency")
 WRITABLE = ("fund_name", "strategy", "vintage_year", "commitment")
 
 _select_list = sql.SQL(", ").join(map(sql.Identifier, COLUMNS))
@@ -20,8 +22,8 @@ _select_list = sql.SQL(", ").join(map(sql.Identifier, COLUMNS))
 def _with_derived_columns(values: dict[str, Any]) -> dict[str, Any]:
     """Dual-write: whenever commitment is written, also write its parsed columns.
 
-    The text column is still the source of truth (it's what reads use); the new columns
-    are kept in step with it so they can be trusted once every writer does this.
+    The new columns are now the source of truth (reads use them). The text is still
+    written so step-3 instances, which read it, stay correct during this rollout.
     """
     if "commitment" not in values:
         return values
@@ -29,14 +31,21 @@ def _with_derived_columns(values: dict[str, Any]) -> dict[str, Any]:
     return {**values, "commitment_cents": cents, "currency": currency}
 
 
+def _to_fund(row: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Add the commitment display string, built from the new columns."""
+    if row is None:
+        return None
+    return {**row, "commitment": format_commitment(row["commitment_cents"], row["currency"])}
+
+
 def list_funds(conn: psycopg.Connection) -> list[dict[str, Any]]:
     query = sql.SQL("SELECT {cols} FROM funds ORDER BY id").format(cols=_select_list)
-    return conn.execute(query).fetchall()
+    return [_to_fund(row) for row in conn.execute(query)]
 
 
 def get_fund(conn: psycopg.Connection, fund_id: int) -> dict[str, Any] | None:
     query = sql.SQL("SELECT {cols} FROM funds WHERE id = %s").format(cols=_select_list)
-    return conn.execute(query, (fund_id,)).fetchone()
+    return _to_fund(conn.execute(query, (fund_id,)).fetchone())
 
 
 def create_fund(
@@ -51,7 +60,7 @@ def create_fund(
         vals=sql.SQL(", ").join(map(sql.Placeholder, values)),
         ret=_select_list,
     )
-    return conn.execute(query, values).fetchone()
+    return _to_fund(conn.execute(query, values).fetchone())
 
 
 def update_fund(
@@ -67,4 +76,4 @@ def update_fund(
         id=sql.Placeholder("_id"),
         ret=_select_list,
     )
-    return conn.execute(query, {**values, "_id": fund_id}).fetchone()
+    return _to_fund(conn.execute(query, {**values, "_id": fund_id}).fetchone())

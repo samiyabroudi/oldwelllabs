@@ -31,4 +31,6 @@ class FundOut(BaseModel):
     fund_name: str
     strategy: str
     vintage_year: int
-    commitment: str
+    commitment: str  # display string, e.g. "$1,200,000 USD"
+    commitment_cents: int  # hundredths of the currency unit, JPY included
+    currency: str  # ISO 4217 code
