@@ -19,6 +19,7 @@ Docker (with Compose), [uv](https://docs.astral.sh/uv/), Node 18+.
 | `make migrate` | Apply every migration up to this checkout (`alembic upgrade head`) |
 | `make serve PORT=8001` | Run the API on that port (default 8000) |
 | `make web API_PORT=8001` | Run the React dev server (http://localhost:5173) against the API on that port |
+| `make test` | Run unit tests |
 
 `DATABASE_URL` defaults to `postgresql://owl:owl@localhost:5432/owl`.
 
@@ -35,7 +36,9 @@ writes (creates, commitment edits, and edits that leave the commitment alone).
 
 ## Layout
 
-- `app/` FastAPI app. All SQL lives in `app/funds_store.py` and names its columns explicitly.
+- `app/` FastAPI app. All SQL lives in `app/funds_store.py` and names its columns explicitly;
+  `app/commitment.py` parses `"$1,200,000 USD"` into `(120000000, "USD")`.
+- `tests/` Unit tests.
 - `migrations/` Alembic, with plain-SQL migrations (no ORM models).
 - `web/` Vite + React.
 - `scripts/` `replay.sh` and its checker for side-by-side branch testing.
