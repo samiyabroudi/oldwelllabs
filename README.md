@@ -58,6 +58,20 @@ writes (creates, commitment edits, and edits that leave the commitment alone).
 `commitment_cents`/`currency` agree with its `commitment` text. It is only meaningful for
 the `step_2 → step_3` and `step_3 → step_4` pairs (see the comment in the script).
 
+### Full chain
+
+```
+python3 scripts/full_chain.py
+```
+
+Where `replay.sh` reseeds for each pair, this carries **one** database through every rollout
+(`step_0 → step_1 → … → step_6`): at each one it runs `make migrate` on the new step, serves
+old and new side by side, and writes through both, including old and new editing the same
+row in both orders. After every rollout it checks every row, through both versions, against
+what the last write set. This is what proves history carries forward, e.g. a row left stale
+by step-1 code during the `step_1 → step_2` rollout reads correctly once step 4 switches reads
+to the new columns, because step 3's backfill repaired it.
+
 ## Layout
 
 - `app/` FastAPI app. All SQL lives in `app/funds_store.py` and names its columns explicitly;
@@ -65,7 +79,8 @@ the `step_2 → step_3` and `step_3 → step_4` pairs (see the comment in the sc
 - `tests/` Unit tests.
 - `migrations/` Alembic, with plain-SQL migrations (no ORM models).
 - `web/` Vite + React.
-- `scripts/` `replay.sh` and its checker for side-by-side branch testing.
+- `scripts/` `replay.sh` and its checker for side-by-side branch testing; `full_chain.py` for
+  the whole sequence against one database.
 - `funds.csv` A generated 50-row sample; the original file was not provided.
 
 ## API
