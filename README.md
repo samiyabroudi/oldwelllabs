@@ -93,18 +93,6 @@ writes (creates, commitment edits, and edits that leave the commitment alone).
 `commitment_cents`/`currency` agree with its `commitment` text. It is only meaningful for
 the `step_2 → step_3` and `step_3 → step_4` pairs (see the comment in the script).
 
-### Code before migration
-
-```
-scripts/replay.sh --code-first step_4 step_5
-```
-
-Skips `make migrate` on the newer branch, so both versions serve against the **older**
-schema, as if the new code rolled out before its migration ran. Every pair passes except
-`step_4 → step_5`: step-5 code inserts rows without the commitment text, which `0004`'s schema
-still requires (`NOT NULL` is dropped by `0005`). So step 5 is the one step whose migration
-must be applied before its code; for the others the order doesn't matter.
-
 ### Full chain
 
 ```
