@@ -1,3 +1,7 @@
+# A fixed project name makes every checkout (e.g. a second git worktree for
+# side-by-side testing) share this one Postgres container and volume.
+name: owl-funds
+
 services:
   db:
     image: postgres:16
