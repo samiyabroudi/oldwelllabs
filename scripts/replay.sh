@@ -3,6 +3,7 @@
 #
 #   scripts/replay.sh step_0 step_1
 #   scripts/replay.sh --db-check step_2 step_3
+#   scripts/replay.sh --code-first step_4 step_5
 #
 # Mirrors how the graders test: check out both branches side by side, point them at the
 # same database, `make seed && make migrate` on the old one, `make migrate` on the new one,
@@ -15,15 +16,23 @@ set -euo pipefail
 # (nothing has backfilled them yet); from step 5 the text column can be NULL and in step 6
 # it's gone, so there is nothing to compare against. From step 4 on the API returns the
 # new columns, so replay_check.py's consistency check already covers this without SQL.
+
+# --code-first: skip `make migrate` on the new branch, so both versions serve against the
+# OLD schema. Simulates the new code rolling out before its migration has run, to show
+# which steps need their migration applied first. Expected: every pair passes except
+# step_4 -> step_5, whose code inserts rows without the commitment text, which 0004's
+# schema still requires (NOT NULL is only dropped by 0005).
 DB_CHECK=0
+CODE_FIRST=0
 ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --db-check) DB_CHECK=1 ;;
+    --code-first) CODE_FIRST=1 ;;
     *) ARGS+=("$arg") ;;
   esac
 done
-USAGE="usage: replay.sh [--db-check] OLD_BRANCH NEW_BRANCH"
+USAGE="usage: replay.sh [--db-check] [--code-first] OLD_BRANCH NEW_BRANCH"
 OLD=${ARGS[0]:?$USAGE}
 NEW=${ARGS[1]:?$USAGE}
 OLD_PORT=${OLD_PORT:-8101}
@@ -61,8 +70,12 @@ git -C "$ROOT" worktree add --quiet --detach "$WORK/new" "$NEW"
 step "[$OLD] make seed && make migrate"
 make -C "$WORK/old" seed migrate
 
-step "[$NEW] make migrate"
-make -C "$WORK/new" migrate
+if [ "$CODE_FIRST" = 1 ]; then
+  step "[$NEW] skipping make migrate (--code-first): both serve against $OLD's schema"
+else
+  step "[$NEW] make migrate"
+  make -C "$WORK/new" migrate
+fi
 
 step "Serving $OLD on :$OLD_PORT and $NEW on :$NEW_PORT"
 make -C "$WORK/old" serve PORT="$OLD_PORT" >"$WORK/serve-$OLD_PORT.log" 2>&1 &

@@ -12,6 +12,7 @@ Standard library only, so it runs without the project's virtualenv.
 import json
 import re
 import sys
+import urllib.error
 import urllib.request
 from decimal import Decimal
 
@@ -23,8 +24,12 @@ def call(base: str, method: str, path: str, body: dict | None = None):
     req = urllib.request.Request(
         base + path, data=data, method=method, headers={"Content-Type": "application/json"}
     )
-    with urllib.request.urlopen(req) as res:
-        return json.load(res)
+    try:
+        with urllib.request.urlopen(req) as res:
+            return json.load(res)
+    except urllib.error.HTTPError as e:
+        # A non-2xx response means that instance can't serve this traffic: stop the run.
+        sys.exit(f"  FAIL  {method} {base}{path} -> HTTP {e.code}\n\n1 check(s) failed")
 
 
 def parse(commitment: str) -> tuple[int, str]:
