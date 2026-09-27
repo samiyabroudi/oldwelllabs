@@ -34,6 +34,10 @@ older one and `make migrate` on the newer one against the shared database, serve
 ports 8101 and 8102, and cross-checks that each instance correctly reads what the other
 writes (creates, commitment edits, and edits that leave the commitment alone).
 
+`scripts/replay.sh --db-check step_2 step_3` additionally verifies in SQL that every row's
+`commitment_cents`/`currency` agree with its `commitment` text. It is only meaningful for
+the `step_2 → step_3` and `step_3 → step_4` pairs (see the comment in the script).
+
 ## Layout
 
 - `app/` FastAPI app. All SQL lives in `app/funds_store.py` and names its columns explicitly;

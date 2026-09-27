@@ -2,14 +2,30 @@
 # Replay a rolling deploy between two consecutive step branches.
 #
 #   scripts/replay.sh step_0 step_1
+#   scripts/replay.sh --db-check step_2 step_3
 #
 # Mirrors how the graders test: check out both branches side by side, point them at the
 # same database, `make seed && make migrate` on the old one, `make migrate` on the new one,
 # serve both, and check each one correctly reads what the other writes.
 set -euo pipefail
 
-OLD=${1:?usage: replay.sh OLD_BRANCH NEW_BRANCH}
-NEW=${2:?usage: replay.sh OLD_BRANCH NEW_BRANCH}
+# --db-check: after the API checks, also verify in SQL that every row's commitment_cents
+# and currency agree with its commitment text. ONLY USEFUL FOR THE step_2 -> step_3 AND
+# step_3 -> step_4 PAIRS. Before step 3 the new columns are legitimately NULL or stale
+# (nothing has backfilled them yet); from step 5 the text column can be NULL and in step 6
+# it's gone, so there is nothing to compare against. From step 4 on the API returns the
+# new columns, so replay_check.py's consistency check already covers this without SQL.
+DB_CHECK=0
+ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --db-check) DB_CHECK=1 ;;
+    *) ARGS+=("$arg") ;;
+  esac
+done
+USAGE="usage: replay.sh [--db-check] OLD_BRANCH NEW_BRANCH"
+OLD=${ARGS[0]:?$USAGE}
+NEW=${ARGS[1]:?$USAGE}
 OLD_PORT=${OLD_PORT:-8101}
 NEW_PORT=${NEW_PORT:-8102}
 
@@ -58,3 +74,22 @@ wait_for "$NEW_PORT"
 
 step "Cross-checking reads and writes"
 python3 "$ROOT/scripts/replay_check.py" "http://localhost:$OLD_PORT" "http://localhost:$NEW_PORT"
+
+if [ "$DB_CHECK" = 1 ]; then
+  step "Checking every row's commitment_cents/currency against its text (--db-check)"
+  # Same parsing as migration 0003. Any row returned is a mismatch.
+  mismatches=$(docker compose -f "$ROOT/docker-compose.yml" exec -T db psql -U owl -d owl -tA -F ' | ' -c "
+    SELECT id, commitment, commitment_cents, currency
+      FROM funds
+     WHERE commitment_cents IS DISTINCT FROM
+             round(regexp_replace(commitment, '[^0-9.]', '', 'g')::numeric * 100)::bigint
+        OR currency IS DISTINCT FROM right(btrim(commitment), 3)
+     ORDER BY id")
+  total=$(docker compose -f "$ROOT/docker-compose.yml" exec -T db psql -U owl -d owl -tA -c "SELECT count(*) FROM funds")
+  if [ -n "$mismatches" ]; then
+    echo "  FAIL  rows whose new columns disagree with commitment (id | commitment | cents | currency):"
+    echo "$mismatches" | sed 's/^/          /'
+    exit 1
+  fi
+  echo "  ok    all $total rows agree with their commitment text"
+fi
