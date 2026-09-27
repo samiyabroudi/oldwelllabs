@@ -22,7 +22,7 @@ Docker (with Compose), [uv](https://docs.astral.sh/uv/), Node 18+.
 
 | Command | What it does |
 |---|---|
-| `make seed` | Drop and recreate the database, run this checkout's migrations, load `funds.csv` |
+| `make seed` | Validate `funds.csv` like the API does, then drop and recreate the database, run this checkout's migrations, and load it |
 | `make migrate` | Apply every migration up to this checkout (`alembic upgrade head`) |
 | `make serve PORT=8001` | Run the API on that port (default 8000) |
 | `make web API_PORT=8001` | Run the React dev server (http://localhost:5173) against the API on that port |
@@ -44,7 +44,8 @@ branch; later steps only add response fields. Commitment input is validated as
 `<optional symbol><amount with up to 2 decimals> <3-letter code>`, so every stored value can
 be parsed by the migration. The symbol can't contain a sign (negative amounts are rejected,
 not silently made positive), and the amount is capped at 15 integer digits so its value in
-cents always fits in a `bigint`.
+cents always fits in a `bigint`. `vintage_year` must be between 1900 and 2100. `PATCH` changes only
+the fields sent; an explicit `null` is rejected rather than ignored.
 
 ## Out of scope
 
