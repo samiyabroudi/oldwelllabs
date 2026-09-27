@@ -1,0 +1,23 @@
+# A fixed project name makes every checkout (e.g. a second git worktree for
+# side-by-side testing) share this one Postgres container and volume.
+name: owl-funds
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: owl
+      POSTGRES_PASSWORD: owl
+      POSTGRES_DB: owl
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U owl -d postgres"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
