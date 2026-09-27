@@ -7,6 +7,26 @@ into `commitment_cents bigint` + `currency char(3)`.
 Work lives on stacked step branches (`step_0` → `step_6`),
 each cut from the previous one, with one open PR per step.
 
+## Migration sequence
+
+Each step is safe to deploy while the previous step's code is still serving. Every step
+needs the previous one fully deployed first; steps whose migration and code both change
+apply the migration before the new code serves.
+
+| Branch | Migration | Code | Why the previous step's code still works |
+|---|---|---|---|
+| `step_0` | `0001` create `funds`, `commitment text not null` | Reads/writes text | (baseline) |
+| `step_1` | `0002` add nullable `commitment_cents`, `currency` | No change | Explicit column lists: it never sees the new columns |
+| `step_2` | none | Dual-writes text + new columns; reads text | Step 1 writes text only; new columns aren't read yet |
+| `step_3` | `0003` backfill every row from the text | No change | Step 2 dual-writes, so nothing can go stale after the backfill |
+| `step_4` | `0004` new columns `NOT NULL` | Reads new columns; still dual-writes | Step 3 dual-writes, so the constraint holds, and still gets its text |
+| `step_5` | `0005` text column nullable | Stops writing text | Step 4 still writes text (harmless) and never reads it |
+| `step_6` | `0006` drop text column | No change | Step 5 never names the column |
+
+Final schema: `funds(id, fund_name, strategy, vintage_year, commitment_cents bigint not null,
+currency char(3) not null)`. The API still accepts and returns `commitment` as a display
+string, alongside `commitment_cents` and `currency`.
+
 ## Requirements
 
 Docker (with Compose), [uv](https://docs.astral.sh/uv/), Node 18+.
