@@ -15,7 +15,9 @@ COMMITTED, if a dual-write committed first, Postgres re-evaluates the SET expres
 against that newer row version. Both sides derive the columns from the same text.
 
 Unparseable text fails the migration loudly rather than being skipped. The API has
-validated this format since step 0, so none is expected.
+validated this format since step 0, so none is expected. The check also rejects signed
+amounts (parsing would silently drop the sign) and amounts over 15 integer digits (the
+cents would overflow bigint), naming the rows instead of failing mid-UPDATE.
 
 The parsing duplicates app/commitment.py in SQL on purpose: migrations must not import
 app code, whose behaviour can change after the migration is written.
@@ -29,7 +31,7 @@ branch_labels = None
 depends_on = None
 
 # Keep in sync with COMMITMENT_PATTERN in app/schemas.py as of this revision.
-PATTERN = r"^\D*(\d{1,3}(,\d{3})*|\d+)(\.\d{1,2})?\s+[A-Z]{3}$"
+PATTERN = r"^[^\d+\u2212-]*(\d{1,3}(,\d{3}){0,4}|\d{1,15})(\.\d{1,2})?\s+[A-Z]{3}$"
 CENTS = r"round(regexp_replace(commitment, '[^0-9.]', '', 'g')::numeric * 100)::bigint"
 CURRENCY = "right(btrim(commitment), 3)"
 
