@@ -132,6 +132,20 @@ serving version, with what the last write set: 638 checks in all. This is what p
 carries forward, e.g. a row left stale by step-1 code during the `step_1 → step_2` rollout reads
 correctly once step 4 switches reads to the new columns, because step 3's backfill repaired it.
 
+### UI chain
+
+```
+uv run --no-project --with playwright python scripts/ui_chain.py
+```
+
+The same rollout-by-rollout chain, driven through the React app in a real Chrome (Playwright,
+using the installed Google Chrome). Two frontends run side by side, one on the old step's API
+and one on the new step's, and every write is made by filling in the form and clicking
+Add, Edit or Save, and every read is the rendered table. Each phase creates and edits funds,
+checks that invalid input shows a readable error and leaves the row unchanged, and compares the
+whole table with what the last write set; during each overlap, each UI must show the other's
+changes (329 checks). It saves screenshots of both UIs during every overlap.
+
 ## Layout
 
 - `app/` FastAPI app. All SQL lives in `app/funds_store.py` and names its columns explicitly;
@@ -140,7 +154,7 @@ correctly once step 4 switches reads to the new columns, because step 3's backfi
 - `migrations/` Alembic, with plain-SQL migrations (no ORM models).
 - `web/` Vite + React.
 - `scripts/` `replay.sh` and its checker for side-by-side branch testing; `full_chain.py` for
-  the whole sequence against one database.
+  the whole sequence against one database; `ui_chain.py` for the same through the browser.
 - `funds.csv` Synthesized sample data (see [Data](#data)).
 
 ## API
