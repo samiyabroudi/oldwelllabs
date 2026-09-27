@@ -7,6 +7,13 @@ into `commitment_cents bigint` + `currency char(3)`.
 Work lives on stacked step branches (`step_0` → `step_6`),
 each cut from the previous one, with one open PR per step.
 
+## Data
+
+We synthesized `funds.csv` because we didn't have access to the original file from Old Well.
+It has the same columns (`id, fund_name, strategy, vintage_year, commitment`) and 50 rows of
+commitments in the format the assignment describes, covering USD, EUR, GBP, JPY and CAD,
+with and without cents (e.g. `"$21,900,000 USD"`, `"€4,304,000.29 EUR"`, `"C$10,155,000 CAD"`).
+
 ## Requirements
 
 Docker (with Compose), [uv](https://docs.astral.sh/uv/), Node 18+.
@@ -46,7 +53,7 @@ the `step_2 → step_3` and `step_3 → step_4` pairs (see the comment in the sc
 - `migrations/` Alembic, with plain-SQL migrations (no ORM models).
 - `web/` Vite + React.
 - `scripts/` `replay.sh` and its checker for side-by-side branch testing.
-- `funds.csv` A generated 50-row sample; the original file was not provided.
+- `funds.csv` Synthesized sample data (see [Data](#data)).
 
 ## API
 
