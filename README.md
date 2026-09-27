@@ -7,21 +7,52 @@ into `commitment_cents bigint` + `currency char(3)`.
 Work lives on stacked step branches (`step_0` → `step_6`),
 each cut from the previous one, with one open PR per step.
 
+## Branches and PRs
+
+The PRs are **chained**: each step's branch is cut from the previous step's branch, and its
+PR targets that branch rather than `main` (`step_0` → `main`, `step_1` → `step_0`, …,
+`step_6` → `step_5`). So each PR's diff shows only what that step adds, and every branch
+contains all the steps before it.
+
+**Trying a step.** Because a branch includes everything upstream, you don't need to go
+through the steps from 0 to run one: check out any step and it stands alone.
+
+```
+git checkout step_4          # or: gh pr checkout 5
+make seed                    # fresh database, migrations 0001..0004, CSV loaded
+make serve PORT=8000
+```
+
+To see a rollout between two steps, run `scripts/replay.sh step_3 step_4` (or check out both
+side by side as described below).
+
+**Applying the PRs.** Merge them in order, bottom-up: #1 into `main`, then #2, and so on.
+When a PR is merged and its branch deleted, GitHub retargets the next PR onto `main`, and its
+diff is still just that step. Merging a later PR on its own (say #5) brings in every step below
+it, since its branch contains them.
+
+**Deploying to a running system is different: steps can't be skipped.** Starting from any step
+works for a fresh database, like the one `make seed` builds. On an existing database with live
+traffic, each step assumes the previous one is fully deployed (see the table below). Jumping
+straight from `step_1` to `step_4`, for example, would add `NOT NULL` while step-1 instances
+are still writing text-only rows, and it would skip the window in which step 2 makes every
+writer fill the new columns before step 3 backfills them.
+
 ## Migration sequence
 
 Each step is safe to deploy while the previous step's code is still serving. Every step
 needs the previous one fully deployed first; steps whose migration and code both change
 apply the migration before the new code serves.
 
-| Branch | Migration | Code | Why the previous step's code still works |
-|---|---|---|---|
-| `step_0` | `0001` create `funds`, `commitment text not null` | Reads/writes text | (baseline) |
-| `step_1` | `0002` add nullable `commitment_cents`, `currency` | No change | Explicit column lists: it never sees the new columns |
-| `step_2` | none | Dual-writes text + new columns; reads text | Step 1 writes text only; new columns aren't read yet |
-| `step_3` | `0003` backfill every row from the text | No change | Step 2 dual-writes, so nothing can go stale after the backfill |
-| `step_4` | `0004` new columns `NOT NULL` | Reads new columns; still dual-writes | Step 3 dual-writes, so the constraint holds, and still gets its text |
-| `step_5` | `0005` text column nullable | Stops writing text | Step 4 still writes text (harmless) and never reads it |
-| `step_6` | `0006` drop text column | No change | Step 5 never names the column |
+| Branch | PR | Migration | Code | Why the previous step's code still works |
+|---|---|---|---|---|
+| `step_0` | [#1](https://github.com/samiyabroudi/oldwelllabs/pull/1) | `0001` create `funds`, `commitment text not null` | Reads/writes text | (baseline) |
+| `step_1` | [#2](https://github.com/samiyabroudi/oldwelllabs/pull/2) | `0002` add nullable `commitment_cents`, `currency` | No change | Explicit column lists: it never sees the new columns |
+| `step_2` | [#3](https://github.com/samiyabroudi/oldwelllabs/pull/3) | none | Dual-writes text + new columns; reads text | Step 1 writes text only; new columns aren't read yet |
+| `step_3` | [#4](https://github.com/samiyabroudi/oldwelllabs/pull/4) | `0003` backfill every row from the text | No change | Step 2 dual-writes, so nothing can go stale after the backfill |
+| `step_4` | [#5](https://github.com/samiyabroudi/oldwelllabs/pull/5) | `0004` new columns `NOT NULL` | Reads new columns; still dual-writes | Step 3 dual-writes, so the constraint holds, and still gets its text |
+| `step_5` | [#6](https://github.com/samiyabroudi/oldwelllabs/pull/6) | `0005` text column nullable | Stops writing text | Step 4 still writes text (harmless) and never reads it |
+| `step_6` | [#7](https://github.com/samiyabroudi/oldwelllabs/pull/7) | `0006` drop text column | No change | Step 5 never names the column |
 
 Final schema: `funds(id, fund_name, strategy, vintage_year, commitment_cents bigint not null,
 currency char(3) not null)`. The API still accepts and returns `commitment` as a display
