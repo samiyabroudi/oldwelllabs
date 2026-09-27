@@ -1,4 +1,5 @@
 PORT ?= 8000
+API_PORT ?= 8000
 DATABASE_URL ?= postgresql://owl:owl@localhost:5432/owl
 export DATABASE_URL
 
@@ -20,6 +21,6 @@ migrate: db
 serve:
 	uv run uvicorn app.main:app --port $(PORT)
 
-# Run the React dev server against the API on $(PORT).
+# Run the React dev server (http://localhost:5173) against the API on $(API_PORT).
 web:
-	cd web && (test -d node_modules || npm install) && API_PORT=$(PORT) npm run dev
+	cd web && (test -d node_modules || npm install) && API_PORT=$(API_PORT) npm run dev

@@ -4,7 +4,7 @@ A small funds app (Postgres, FastAPI, React) used to demonstrate a zero-downtime
 rolling-deploy-safe migration of `funds.commitment` (text like `$1,200,000 USD`)
 into `commitment_cents bigint` + `currency char(3)`.
 
-Work lives on stacked step branches (`step-0-baseline` → `step-6-contract`),
+Work lives on stacked step branches (`step_0` → `step_6`),
 each cut from the previous one, with one open PR per step.
 
 ## Requirements
@@ -18,7 +18,7 @@ Docker (with Compose), [uv](https://docs.astral.sh/uv/), Node 18+.
 | `make seed` | Drop and recreate the database, run this checkout's migrations, load `funds.csv` |
 | `make migrate` | Apply every migration up to this checkout (`alembic upgrade head`) |
 | `make serve PORT=8001` | Run the API on that port (default 8000) |
-| `make web PORT=8001` | Run the React dev server (http://localhost:5173) against the API on that port |
+| `make web API_PORT=8001` | Run the React dev server (http://localhost:5173) against the API on that port |
 
 `DATABASE_URL` defaults to `postgresql://owl:owl@localhost:5432/owl`.
 
