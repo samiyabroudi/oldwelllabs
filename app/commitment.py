@@ -1,4 +1,4 @@
-"""Parse commitment display strings like "$1,200,000 USD" into (cents, currency).
+"""Convert between commitment display strings like "$1,200,000 USD" and (cents, currency).
 
 The trailing 3-letter code is the currency; any leading symbol ("$", "€", "C$") is
 ignored. The amount is stored in hundredths of the currency unit for every currency,
@@ -11,6 +11,9 @@ Decimal, never float: float can't represent most cent values exactly.
 import re
 from decimal import Decimal
 
+# Display symbols for the currencies in funds.csv; any other code is shown without one.
+SYMBOLS = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "CAD": "C$"}
+
 
 def parse_commitment(text: str) -> tuple[int, str]:
     text = text.strip()
@@ -20,3 +23,14 @@ def parse_commitment(text: str) -> tuple[int, str]:
     if cents != cents.to_integral_value():
         raise ValueError(f"commitment has more than two decimal places: {text!r}")
     return int(cents), currency
+
+
+def format_commitment(cents: int, currency: str) -> str:
+    """Inverse of parse_commitment: (792300099, "USD") -> "$7,923,000.99 USD".
+
+    Decimals are shown only when there are cents, matching how funds.csv writes amounts,
+    so every value in the CSV round-trips to the exact same string.
+    """
+    units, rem = divmod(cents, 100)
+    amount = f"{units:,}" if rem == 0 else f"{units:,}.{rem:02d}"
+    return f"{SYMBOLS.get(currency, '')}{amount} {currency}"
