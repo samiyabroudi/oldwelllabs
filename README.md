@@ -115,12 +115,22 @@ python3 scripts/full_chain.py
 ```
 
 Where `replay.sh` reseeds for each pair, this carries **one** database through every rollout
-(`step_0 → step_1 → … → step_6`): at each one it runs `make migrate` on the new step, serves
-old and new side by side, and writes through both, including old and new editing the same
-row in both orders. After every rollout it checks every row, through both versions, against
-what the last write set. This is what proves history carries forward, e.g. a row left stale
-by step-1 code during the `step_1 → step_2` rollout reads correctly once step 4 switches reads
-to the new columns, because step 3's backfill repaired it.
+(`step_0 → step_1 → … → step_6`) and runs each the way it would be deployed:
+
+- **migrate**: `make migrate` on the new step, then check the schema (columns and nullability)
+  is what that step expects and, after the backfill, that every row's cents match its text (SQL).
+- **A**: the old step alone against the new schema.
+- **B**: both steps serving: each reads the other's creates, both edit the same row in both
+  orders, and each edits rows the other created.
+- **C**: the new step alone, with the old one retired. After step 5, a row it created and
+  edited has NULL commitment text.
+
+Each phase creates funds, edits commitments, names, strategies and years, sends invalid input
+(negative, oversized, unparseable, bad year, explicit null) that must be rejected and leave
+the row unchanged, checks 404s, and finally compares every row and field, through every
+serving version, with what the last write set: 638 checks in all. This is what proves history
+carries forward, e.g. a row left stale by step-1 code during the `step_1 → step_2` rollout reads
+correctly once step 4 switches reads to the new columns, because step 3's backfill repaired it.
 
 ## Layout
 
