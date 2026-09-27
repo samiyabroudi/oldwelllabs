@@ -2,7 +2,7 @@ PORT ?= 8000
 DATABASE_URL ?= postgresql://owl:owl@localhost:5432/owl
 export DATABASE_URL
 
-.PHONY: db seed migrate serve
+.PHONY: db seed migrate serve web
 
 # Start Postgres and wait until it accepts connections.
 db:
@@ -19,3 +19,7 @@ migrate: db
 # Run the API, e.g. `make serve PORT=8001`.
 serve:
 	uv run uvicorn app.main:app --port $(PORT)
+
+# Run the React dev server against the API on $(PORT).
+web:
+	cd web && (test -d node_modules || npm install) && API_PORT=$(PORT) npm run dev
