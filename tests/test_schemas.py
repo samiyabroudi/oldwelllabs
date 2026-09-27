@@ -2,7 +2,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from app.commitment import parse_commitment
-from app.schemas import Commitment
+from app.schemas import Commitment, FundIn, FundPatch
 
 validate = TypeAdapter(Commitment).validate_python
 
@@ -46,3 +46,26 @@ def test_rejects_invalid_commitments(text):
 def test_largest_accepted_amount_fits_in_bigint():
     cents, _ = parse_commitment(validate("$999,999,999,999,999.99 USD"))
     assert cents <= BIGINT_MAX
+
+
+@pytest.mark.parametrize("year", [1900, 2012, 2100])
+def test_accepts_vintage_years_in_range(year):
+    FundIn(fund_name="A", strategy="B", vintage_year=year, commitment="$1 USD")
+
+
+@pytest.mark.parametrize("year", [1899, 2101, -5, 99_999_999_999])  # the last overflowed integer
+def test_rejects_vintage_years_out_of_range(year):
+    with pytest.raises(ValidationError):
+        FundIn(fund_name="A", strategy="B", vintage_year=year, commitment="$1 USD")
+
+
+@pytest.mark.parametrize("field", ["fund_name", "strategy", "vintage_year", "commitment"])
+def test_patch_rejects_explicit_null(field):
+    with pytest.raises(ValidationError):
+        FundPatch.model_validate({field: None})
+
+
+def test_patch_only_includes_fields_sent():
+    assert FundPatch.model_validate({"fund_name": "New"}).model_dump(exclude_unset=True) == {
+        "fund_name": "New"
+    }
