@@ -3,7 +3,7 @@ API_PORT ?= 8000
 DATABASE_URL ?= postgresql://owl:owl@localhost:5432/owl
 export DATABASE_URL
 
-.PHONY: db seed migrate serve web
+.PHONY: db seed migrate serve web test
 
 # Start Postgres and wait until it accepts connections.
 db:
@@ -24,3 +24,7 @@ serve:
 # Run the React dev server (http://localhost:5173) against the API on $(API_PORT).
 web:
 	cd web && (test -d node_modules || npm install) && API_PORT=$(API_PORT) npm run dev
+
+# Run unit tests.
+test:
+	uv run pytest -q
