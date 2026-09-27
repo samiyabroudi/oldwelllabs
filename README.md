@@ -29,11 +29,23 @@ Docker (with Compose), [uv](https://docs.astral.sh/uv/), Node 18+.
 
 `DATABASE_URL` defaults to `postgresql://owl:owl@localhost:5432/owl`.
 
+## Replaying a rolling deploy
+
+```
+scripts/replay.sh step_0 step_1
+```
+
+Checks out both branches into temporary worktrees, runs `make seed && make migrate` on the
+older one and `make migrate` on the newer one against the shared database, serves them on
+ports 8101 and 8102, and cross-checks that each instance correctly reads what the other
+writes (creates, commitment edits, and edits that leave the commitment alone).
+
 ## Layout
 
 - `app/` FastAPI app. All SQL lives in `app/funds_store.py` and names its columns explicitly.
 - `migrations/` Alembic, with plain-SQL migrations (no ORM models).
 - `web/` Vite + React.
+- `scripts/` `replay.sh` and its checker for side-by-side branch testing.
 - `funds.csv` Synthesized sample data (see [Data](#data)).
 
 ## API
