@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
 
 # e.g. "$1,200,000 USD", "€4,304,000.29 EUR", "C$10,155,000 CAD".
 # Optional leading symbol, an amount with optional thousands separators and at most two
@@ -13,20 +13,25 @@ COMMITMENT_PATTERN = r"^[^\d+\u2212-]*(\d{1,3}(,\d{3}){0,4}|\d{1,15})(\.\d{1,2})
 
 Commitment = Annotated[str, StringConstraints(strip_whitespace=True, pattern=COMMITMENT_PATTERN)]
 NonEmpty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+# Bounded so a huge value is a 422, not a Postgres integer overflow (500).
+VintageYear = Annotated[int, Field(ge=1900, le=2100)]
 
 
 class FundIn(BaseModel):
     fund_name: NonEmpty
     strategy: NonEmpty
-    vintage_year: int
+    vintage_year: VintageYear
     commitment: Commitment
 
 
 class FundPatch(BaseModel):
-    fund_name: NonEmpty | None = None
-    strategy: NonEmpty | None = None
-    vintage_year: int | None = None
-    commitment: Commitment | None = None
+    # Omitted fields default to None and are left unchanged (the route dumps with
+    # exclude_unset). An explicit null isn't a valid value for any field, so it's a 422
+    # rather than being silently ignored.
+    fund_name: NonEmpty = None
+    strategy: NonEmpty = None
+    vintage_year: VintageYear = None
+    commitment: Commitment = None
 
 
 class FundOut(BaseModel):
