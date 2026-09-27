@@ -27,6 +27,13 @@ Final schema: `funds(id, fund_name, strategy, vintage_year, commitment_cents big
 currency char(3) not null)`. The API still accepts and returns `commitment` as a display
 string, alongside `commitment_cents` and `currency`.
 
+## Data
+
+We synthesized `funds.csv` because we didn't have access to the original file from Old Well.
+It has the same columns (`id, fund_name, strategy, vintage_year, commitment`) and 50 rows of
+commitments in the format the assignment describes, covering USD, EUR, GBP, JPY and CAD,
+with and without cents (e.g. `"$21,900,000 USD"`, `"€4,304,000.29 EUR"`, `"C$10,155,000 CAD"`).
+
 ## Requirements
 
 Docker (with Compose), [uv](https://docs.astral.sh/uv/), Node 18+.
@@ -81,7 +88,7 @@ to the new columns, because step 3's backfill repaired it.
 - `web/` Vite + React.
 - `scripts/` `replay.sh` and its checker for side-by-side branch testing; `full_chain.py` for
   the whole sequence against one database.
-- `funds.csv` A generated 50-row sample; the original file was not provided.
+- `funds.csv` Synthesized sample data (see [Data](#data)).
 
 ## API
 
