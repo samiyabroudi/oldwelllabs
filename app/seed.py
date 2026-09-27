@@ -1,6 +1,6 @@
 """`make seed`: drop and recreate the database, migrate it, and load funds.csv.
 
-Rows go through repo.create_fund, the same write path the API uses, so the seed always
+Rows go through funds_store.create_fund, the same write path the API uses, so the seed always
 writes whatever columns the current checkout's code writes.
 """
 
@@ -12,7 +12,7 @@ from alembic import command
 from alembic.config import Config
 from psycopg import sql
 
-from app import repo
+from app import funds_store
 from app.config import DATABASE_URL
 from app.db import connect
 
@@ -38,7 +38,7 @@ def load_csv() -> int:
     with CSV_PATH.open(newline="", encoding="utf-8") as f, connect() as conn:
         rows = list(csv.DictReader(f))
         for row in rows:
-            repo.create_fund(
+            funds_store.create_fund(
                 conn,
                 {
                     "fund_name": row["fund_name"],

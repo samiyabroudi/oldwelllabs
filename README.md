@@ -24,7 +24,7 @@ Docker (with Compose), [uv](https://docs.astral.sh/uv/), Node 18+.
 
 ## Layout
 
-- `app/` FastAPI app. All SQL lives in `app/repo.py` and names its columns explicitly.
+- `app/` FastAPI app. All SQL lives in `app/funds_store.py` and names its columns explicitly.
 - `migrations/` Alembic, with plain-SQL migrations (no ORM models).
 - `web/` Vite + React.
 - `funds.csv` A generated 50-row sample; the original file was not provided.
