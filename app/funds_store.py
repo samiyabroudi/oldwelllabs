@@ -11,23 +11,24 @@ from psycopg import sql
 
 from app.commitment import format_commitment, parse_commitment
 
-# Reads use the new columns only. The commitment text is no longer read, so this code keeps
-# working once step 5 stops writing it (rows with NULL text) and step 6 drops it.
+# The commitment text column is neither read nor written: no query here names it, so this
+# code keeps working when step 6 drops it. `commitment` survives only as the API field.
 COLUMNS = ("id", "fund_name", "strategy", "vintage_year", "commitment_cents", "currency")
 WRITABLE = ("fund_name", "strategy", "vintage_year", "commitment")
 
 _select_list = sql.SQL(", ").join(map(sql.Identifier, COLUMNS))
 
 
-def _with_derived_columns(values: dict[str, Any]) -> dict[str, Any]:
-    """Dual-write: whenever commitment is written, also write its parsed columns.
+def _to_columns(values: dict[str, Any]) -> dict[str, Any]:
+    """Replace the API's commitment string with the columns it's stored in.
 
-    The new columns are now the source of truth (reads use them). The text is still
-    written so step-3 instances, which read it, stay correct during this rollout.
+    Only commitment_cents and currency are written; the text column is left alone (NULL
+    on new rows, and possibly out of date on edited ones, but nothing reads it).
     """
     if "commitment" not in values:
         return values
-    cents, currency = parse_commitment(values["commitment"])
+    values = dict(values)
+    cents, currency = parse_commitment(values.pop("commitment"))
     return {**values, "commitment_cents": cents, "currency": currency}
 
 
@@ -52,7 +53,7 @@ def create_fund(
     conn: psycopg.Connection, data: dict[str, Any], fund_id: int | None = None
 ) -> dict[str, Any]:
     """Insert a fund. `fund_id` is only passed by the seed loader to keep CSV ids."""
-    values = _with_derived_columns({col: data[col] for col in WRITABLE})
+    values = _to_columns({col: data[col] for col in WRITABLE})
     if fund_id is not None:
         values = {"id": fund_id, **values}
     query = sql.SQL("INSERT INTO funds ({cols}) VALUES ({vals}) RETURNING {ret}").format(
@@ -66,7 +67,7 @@ def create_fund(
 def update_fund(
     conn: psycopg.Connection, fund_id: int, changes: dict[str, Any]
 ) -> dict[str, Any] | None:
-    values = _with_derived_columns({col: changes[col] for col in WRITABLE if col in changes})
+    values = _to_columns({col: changes[col] for col in WRITABLE if col in changes})
     if not values:
         return get_fund(conn, fund_id)
     query = sql.SQL("UPDATE funds SET {sets} WHERE id = {id} RETURNING {ret}").format(
