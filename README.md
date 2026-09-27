@@ -61,7 +61,9 @@ the `step_2 → step_3` and `step_3 → step_4` pairs (see the comment in the sc
 `commitment` is accepted and returned as a display string (`"$1,200,000 USD"`) on every
 branch; later steps only add response fields. Commitment input is validated as
 `<optional symbol><amount with up to 2 decimals> <3-letter code>`, so every stored value can
-be parsed by the migration.
+be parsed by the migration. The symbol can't contain a sign (negative amounts are rejected,
+not silently made positive), and the amount is capped at 15 integer digits so its value in
+cents always fits in a `bigint`.
 
 ## Out of scope
 
